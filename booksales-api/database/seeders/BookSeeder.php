@@ -57,6 +57,11 @@ class BookSeeder extends Seeder
             ],
         ];
 
-        Book::insert($books);
+        foreach ($books as $data) {
+            Book::updateOrCreate(
+                ['title' => $data['title']], // Cegah duplikat berdasarkan title
+                $data // Update kalau sudah ada
+            );
+        }
     }
 }

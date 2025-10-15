@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Web; // ubah namespace-nya jadi Web
 
+use App\Http\Controllers\Controller; // tetap dipanggil dari Controller utama
 use App\Models\Book;
 use App\Models\Author;
 use App\Models\Genre;
@@ -11,7 +12,7 @@ class BookController extends Controller
 {
     public function index()
     {
-        $books = Book::with(['author', 'genre'])->latest()->get();
+        $books = Book::with(['author', 'genre'])->orderBy('id', 'asc')->get();
         return view('books.index', compact('books'));
     }
 
@@ -25,11 +26,13 @@ class BookController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'title' => 'required',
-            'author_id' => 'required',
-            'genre_id' => 'required',
-            'price' => 'required|numeric',
-            'stock' => 'required|integer',
+            'title' => 'required|string|max:255',
+            'author_id' => 'required|exists:authors,id',
+            'genre_id' => 'required|exists:genres,id',
+            'price' => 'required|numeric|min:0',
+            'stock' => 'required|integer|min:0',
+            'description' => 'nullable|string',
+            'cover_photo' => 'nullable|string|max:255',
         ]);
 
         Book::create($request->all());
@@ -46,8 +49,13 @@ class BookController extends Controller
     public function update(Request $request, Book $book)
     {
         $request->validate([
-            'title' => 'required',
-            'price' => 'required|numeric',
+            'title' => 'required|string|max:255',
+            'author_id' => 'required|exists:authors,id',
+            'genre_id' => 'required|exists:genres,id',
+            'price' => 'required|numeric|min:0',
+            'stock' => 'required|integer|min:0',
+            'description' => 'nullable|string',
+            'cover_photo' => 'nullable|string|max:255',
         ]);
 
         $book->update($request->all());
