@@ -14,6 +14,7 @@
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">#</th>
                     <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Title</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Cover</th>
                     <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Author</th>
                     <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Genre</th>
                     <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Price</th>
@@ -26,6 +27,16 @@
                     <tr class="bg-white odd:bg-gray-50 hover:bg-purple-50 transition-colors duration-200">
                         <td class="px-6 py-4 text-gray-800">{{ $loop->iteration }}</td>
                         <td class="px-6 py-4 text-gray-800">{{ $book->title }}</td>
+                        
+                        {{-- Kolom Cover --}}
+                        <td class="px-6 py-4">
+                            @if ($book->cover)
+                                <img src="{{ asset('storage/' . $book->covers) }}" alt="Cover" class="w-12 h-16 object-cover rounded shadow">
+                            @else
+                                <span class="text-gray-400 italic">No Cover</span>
+                            @endif
+                        </td>
+
                         <td class="px-6 py-4 text-gray-800">{{ $book->author->name }}</td>
                         <td class="px-6 py-4 text-gray-800">{{ $book->genre->name }}</td>
                         <td class="px-6 py-4 text-gray-800 font-semibold">Rp {{ number_format($book->price, 0, ',', '.') }}</td>

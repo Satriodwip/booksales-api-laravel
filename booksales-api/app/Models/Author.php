@@ -11,10 +11,9 @@ class Author extends Model
 
     protected $fillable = [
         'name',
-        'bio', // tambahkan bio agar bisa di-mass assign
+        'bio', 
+        'photo'
     ];
-
-    // Jika ingin relasi ke Books
     public function books()
     {
         return $this->hasMany(Book::class);

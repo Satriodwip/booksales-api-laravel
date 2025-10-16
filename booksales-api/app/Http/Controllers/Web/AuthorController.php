@@ -30,6 +30,7 @@ class AuthorController extends Controller
     public function store(Request $request)
     {
         $request->validate([
+            'photo' => 'nullable|image|mimes:jpg,jpeg,png,gif,webp|max:2048',
             'name' => 'required|string|max:100',
             'bio' => 'nullable|string',
         ]);

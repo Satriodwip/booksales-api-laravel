@@ -10,9 +10,10 @@ return new class extends Migration
     {
         Schema::create('authors', function (Blueprint $table) {
             $table->id();
+            $table->string('photo')->nullable(); 
             $table->string('name');
             $table->text('bio')->nullable();
-            $table->timestamps(); // <-- tambahkan ini
+            $table->timestamps(); 
         });
     }
 
