@@ -11,11 +11,18 @@ use Illuminate\Support\Str;
 class BookController extends Controller
 {
     /**
-     * Display a listing of books with author and genre.
+     * Tampilkan semua buku beserta author dan genre.
      */
     public function index()
     {
         $books = Book::with(['author', 'genre'])->orderBy('id', 'desc')->get();
+
+        if ($books->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No books found'
+            ], 404);
+        }
 
         return response()->json([
             'success' => true,
@@ -24,53 +31,62 @@ class BookController extends Controller
     }
 
     /**
-     * Store a newly created book with image upload.
+     * Simpan buku baru ke database.
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'author_id' => 'required|exists:authors,id',
-            'genre_id' => 'required|exists:genres,id',
-            'price' => 'required|numeric|min:0',
-            'stock' => 'required|integer|min:0',
-            'description' => 'nullable|string',
-            'cover_photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // Max 5MB
-        ]);
+        try {
+            $validated = $request->validate([
+                'title' => 'required|string|max:255',
+                'author_id' => 'required|exists:authors,id',
+                'genre_id' => 'required|exists:genres,id',
+                'price' => 'required|numeric|min:0',
+                'stock' => 'required|integer|min:0',
+                'description' => 'nullable|string',
+                'cover_photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120', // Max 5MB
+            ]);
 
-        // Handle image upload
-        if ($request->hasFile('cover_photo')) {
-            $image = $request->file('cover_photo');
+            // Upload cover image jika ada
+            if ($request->hasFile('cover_photo')) {
+                $image = $request->file('cover_photo');
+                $filename = time() . '_' . Str::slug(pathinfo($image->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $image->getClientOriginalExtension();
+                $path = $image->storeAs('covers', $filename, 'public');
+                $validated['cover_photo'] = $path;
+            }
 
-            // Generate unique filename
-            $filename = time() . '_' . Str::slug(pathinfo($image->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $image->getClientOriginalExtension();
+            $book = Book::create($validated);
+            $book->load(['author', 'genre']);
 
-            // Store dengan nama spesifik
-            $path = $image->storeAs('covers', $filename, 'public');
-
-            // Simpan path ke array validated
-            $validated['cover_photo'] = $path;
+            return response()->json([
+                'success' => true,
+                'message' => 'Book created successfully',
+                'data' => $book
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // Create book
-        $book = Book::create($validated);
-
-        // Load relationships
-        $book->load(['author', 'genre']);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Book created successfully',
-            'data' => $book
-        ], 201);
     }
 
     /**
-     * Display the specified book.
+     * Tampilkan detail buku berdasarkan ID.
      */
-    public function show(Book $book)
+    public function show($id)
     {
-        $book->load(['author', 'genre']);
+        $book = Book::with(['author', 'genre'])->find($id);
+
+        if (!$book) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Book not found'
+            ], 404);
+        }
+
+        // Tambahkan URL cover jika ada
+        if ($book->cover_photo) {
+            $book->cover_photo_url = asset('storage/' . $book->cover_photo);
+        }
 
         return response()->json([
             'success' => true,
@@ -79,66 +95,87 @@ class BookController extends Controller
     }
 
     /**
-     * Update the specified book with optional image upload.
+     * Update data buku.
      */
-    public function update(Request $request, Book $book)
+    public function update(Request $request, $id)
     {
-        $validated = $request->validate([
-            'title' => 'sometimes|required|string|max:255',
-            'author_id' => 'sometimes|required|exists:authors,id',
-            'genre_id' => 'sometimes|required|exists:genres,id',
-            'price' => 'sometimes|required|numeric|min:0',
-            'stock' => 'sometimes|required|integer|min:0',
-            'description' => 'nullable|string',
-            'cover_photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
-        ]);
+        $book = Book::find($id);
 
-        // Handle image upload
-        if ($request->hasFile('cover_photo')) {
-            // Delete old image if exists
+        if (!$book) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Book not found'
+            ], 404);
+        }
+
+        try {
+            $validated = $request->validate([
+                'title' => 'required|string|max:255',
+                'author_id' => 'required|exists:authors,id',
+                'genre_id' => 'required|exists:genres,id',
+                'price' => 'required|numeric|min:0',
+                'stock' => 'required|integer|min:0',
+                'description' => 'nullable|string',
+                'cover_photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            ]);
+
+            // Jika ada file baru, hapus yang lama dan simpan baru
+            if ($request->hasFile('cover_photo')) {
+                if ($book->cover_photo && Storage::disk('public')->exists($book->cover_photo)) {
+                    Storage::disk('public')->delete($book->cover_photo);
+                }
+
+                $image = $request->file('cover_photo');
+                $filename = time() . '_' . Str::slug(pathinfo($image->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $image->getClientOriginalExtension();
+                $path = $image->storeAs('covers', $filename, 'public');
+                $validated['cover_photo'] = $path;
+            }
+
+            $book->update($validated);
+            $book->load(['author', 'genre']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Book updated successfully',
+                'data' => $book
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Hapus buku dari database.
+     */
+    public function destroy($id)
+    {
+        $book = Book::find($id);
+
+        if (!$book) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Book not found'
+            ], 404);
+        }
+
+        try {
+            // Hapus cover jika ada
             if ($book->cover_photo && Storage::disk('public')->exists($book->cover_photo)) {
                 Storage::disk('public')->delete($book->cover_photo);
             }
 
-            $image = $request->file('cover_photo');
+            $book->delete();
 
-            // Generate unique filename
-            $filename = time() . '_' . Str::slug(pathinfo($image->getClientOriginalName(), PATHINFO_FILENAME)) . '.' . $image->getClientOriginalExtension();
-
-            // Store new image
-            $path = $image->storeAs('covers', $filename, 'public');
-
-            $validated['cover_photo'] = $path;
+            return response()->json([
+                'success' => true,
+                'message' => 'Book deleted successfully'
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        // Update book
-        $book->update($validated);
-
-        // Reload relationships
-        $book->load(['author', 'genre']);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Book updated successfully',
-            'data' => $book
-        ], 200);
-    }
-
-    /**
-     * Remove the specified book and its image.
-     */
-    public function destroy(Book $book)
-    {
-        // Delete image if exists
-        if ($book->cover_photo && Storage::disk('public')->exists($book->cover_photo)) {
-            Storage::disk('public')->delete($book->cover_photo);
-        }
-
-        $book->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Book deleted successfully'
-        ], 200);
     }
 }
