@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookController;
 use App\Http\Controllers\Api\AuthorController;
 use App\Http\Controllers\Api\GenreController;
+use App\Http\Controllers\Api\TransactionController;
 use Illuminate\Support\Facades\Route;
 
 // AUTH ROUTES 
@@ -11,18 +12,21 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:api');
 
-// Semua orang bisa lihat daftar & detail
+// PUBLIC ROUTES (tanpa login)
 Route::apiResource('books', BookController::class)->only(['index', 'show']);
 Route::apiResource('authors', AuthorController::class)->only(['index', 'show']);
 Route::apiResource('genres', GenreController::class)->only(['index', 'show']);
+Route::apiResource('transactions', TransactionController::class)->only(['index', 'show']);
 
-// HANYA UNTUK USER LOGIN (JWT) 
-Route::middleware(['auth:api'])->group(function () {
+// CUSTOMER ROUTES (login wajib)
+Route::middleware(['auth:api', 'checkrole:customer'])->group(function () {
+    Route::post('transactions', [TransactionController::class, 'store']);
+});
 
-    // ===== HANYA ADMIN =====
-    Route::middleware(['checkrole:admin'])->group(function () {
-        Route::apiResource('books', BookController::class)->only(['store', 'update', 'destroy']);
-        Route::apiResource('authors', AuthorController::class)->only(['store', 'update', 'destroy']);
-        Route::apiResource('genres', GenreController::class)->only(['store', 'update', 'destroy']);
-    });
+// ADMIN ROUTES (login + role admin)
+Route::middleware(['auth:api', 'checkrole:admin'])->group(function () {
+    Route::apiResource('books', BookController::class)->only(['store', 'update', 'destroy']);
+    Route::apiResource('authors', AuthorController::class)->only(['store', 'update', 'destroy']);
+    Route::apiResource('genres', GenreController::class)->only(['store', 'update', 'destroy']);
+    Route::apiResource('transactions', TransactionController::class)->only(['update', 'destroy']);
 });
